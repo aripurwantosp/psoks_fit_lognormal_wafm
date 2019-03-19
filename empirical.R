@@ -1,15 +1,20 @@
-#Empirical Study Form IDHS 2017 Data
+#PSO-KS Empirical Study Fromm IDHS 2017 Data
 #Fitting Lognormal Distribution to Women Age at First Marriage Data
+#
+#Ari Purwanto Sarwo Prasojo & Puguh Prasetyoputra (2019)
+#Research Center for Population, Indonesian Institute of Sciences
+#________________________________________________________________
 
-#Load package and source
-source("stat.R")
-source("pso.fitdist.R")
+#Load package, source, data ----
+source("macro/stat.R")
+source("macro/pso.fitdist.R")
 library(fitdistrplus)
 library(readstata13)
 library(dplyr)
 library(ggplot2)
 
-lnorm_meanvar <- function(theta){
+#/function to calculate lognormal properties (mode, mean, variance)
+lnorm_prop <- function(theta){
   mode <- exp(theta[1]-theta[2]^2)
   mean <- exp(theta[1]+.5*theta[2]^2)
   var <- (exp(theta[2]^2)-1)*exp(2*theta[1]+theta[2]^2)
@@ -18,26 +23,26 @@ lnorm_meanvar <- function(theta){
   return(centr)
 }
 
-#Read data form stata format
+#/read data form stata format
 evwomen <- read.dta13("sdki17-evwomen.dta")
-View(evwomen)
-str(evwomen)
+# View(evwomen)
+# str(evwomen)
 
 
-# Aggregate ---------------------------------------------------------------
+# National Aggregate ------------------------------------------------------
 
+#/data sample ----
 all_afm <- filter(evwomen, V501 != "Never in union")
 all_afm <- all_afm$V511
 
-
-#fitdist
+#/fit distribution ----
 psoks_all_afm <- pso.fitdist(dt = all_afm, dist = "lognormal", stat = "ks.stat",
                              limit = c(0,100), max.iter = 200, n.swarm = 20)
-#/pso behaviour
-pso_beh <- data.frame(iter = 0:200, ks = psoks_all_afm$ks.trace)
+#//pso behaviour
+pso_beh <- data.frame(iter = 0:200, ks = psoks_all_afm$stat.trace)
 ggplot(pso_beh, aes(iter, ks)) + geom_line(color = "brown1") + geom_point(color = "brown1") + 
   labs(title = "PSO-KS's Behaviour, Fitting Lognormal Distribution", 
-       subtitle = "Women age at first marriage, national aggregation",
+       subtitle = "Women's age at first marriage, national aggregation",
        x = "Iteration", y = "KS Distance") +
   theme_bw()
 
@@ -51,17 +56,17 @@ cat("Parameter estimation, national\n")
 cat("---------------------------------------------\n")
 print(est_all_afm)
 
-#/central tendency
-all_central <- rbind(lnorm_meanvar(psoks_all_afm$solution),
-                     lnorm_meanvar(mle_all_afm$estimate),
-                     lnorm_meanvar(mme_all_afm$estimate))
-rownames(all_central) <- c("PSOKS","MLE","MME")
-cat("Parameter estimation, national\n")
+#/properties ----
+all_prop <- rbind(lnorm_prop(psoks_all_afm$solution),
+                     lnorm_prop(mle_all_afm$estimate),
+                     lnorm_prop(mme_all_afm$estimate))
+rownames(all_prop) <- c("PSOKS","MLE","MME")
+cat("Properties, national\n")
 cat("---------------------------------------------\n")
-print(all_central)
+print(all_prop)
 
-#goodness of fit statistcs
-#/mse dsitr stat
+#/goodness of fit statistcs ----
+#//mse of distribution fitting
 mse_psoks_all_afm <- mse.stat(all_afm,"lognormal", meanlog = psoks_all_afm$solution[1],
                               sdlog = psoks_all_afm$solution[2])
 mse_mle_all_afm <- mse.stat(all_afm,"lognormal", meanlog = mle_all_afm$estimate[1],
@@ -69,7 +74,7 @@ mse_mle_all_afm <- mse.stat(all_afm,"lognormal", meanlog = mle_all_afm$estimate[
 mse_mme_all_afm <- mse.stat(all_afm,"lognormal", meanlog = mme_all_afm$estimate[1],
                             sdlog = mme_all_afm$estimate[2])
 
-#/ks stat
+#//ks distance
 ks_psoks_all_afm <- ks.stat(all_afm,"lognormal", meanlog = psoks_all_afm$solution[1],
                               sdlog = psoks_all_afm$solution[2])
 ks_mle_all_afm <- ks.stat(all_afm,"lognormal", meanlog = mle_all_afm$estimate[1],
@@ -77,7 +82,7 @@ ks_mle_all_afm <- ks.stat(all_afm,"lognormal", meanlog = mle_all_afm$estimate[1]
 ks_mme_all_afm <- ks.stat(all_afm,"lognormal", meanlog = mme_all_afm$estimate[1],
                             sdlog = mme_all_afm$estimate[2])
 
-#/loglik
+#//log-likelihood
 loglik_psoks_all_afm <- loglik(all_afm, "lognormal", psoks_all_afm$solution)
 loglik_mle_all_afm <- loglik(all_afm, "lognormal", mle_all_afm$estimate)
 loglik_mme_all_afm <- loglik(all_afm, "lognormal", mme_all_afm$estimate)
@@ -92,8 +97,8 @@ cat("---------------------------------------------\n")
 print(stat_all_afm)
 
 
-#graph fitting
-#/histogram & pdf
+#/graph fitting ----
+#//histogram & pdf
 len_all_afm <- length(all_afm)
 den_all_psoks <- dlnorm(all_afm, meanlog = psoks_all_afm$solution[1],
                           sdlog = psoks_all_afm$solution[2])
@@ -113,11 +118,11 @@ ggplot(den_all_afm, aes(x = afm)) +
   xlim(min(all_afm),max(all_afm)) +
   geom_line(aes(x = afm, y = Density, color = Fit), size = .8) +
   labs(title = "Histogram & Lognormal PDF", 
-       subtitle = "Women age at first marriage, national",
+       subtitle = "Women's age at first marriage, national",
        x = "Age", y = "Density") +
   theme_bw()
 
-#/ecdf & cdf
+#//ecdf & cdf
 cumden_all_psoks <- plnorm(all_afm, meanlog = psoks_all_afm$solution[1],
                         sdlog = psoks_all_afm$solution[2])
 cumden_all_mle <- plnorm(all_afm, meanlog = mle_all_afm$estimate[1],
@@ -133,48 +138,29 @@ ggplot(data = cumden_all_afm, aes(afm))+
   stat_ecdf(geom = "step") +
   geom_line(aes(x = afm, y = Cumden, color = Fit), size = .7) +
   labs(title = "Empirical & Lognormal CDF", 
-       subtitle = "Women age at first marriage, national",
+       subtitle = "Women's age at first marriage, national",
        x = "Age", y = "Cumulative Density") +
   theme_bw()
 
 
+# Diassagregation by Residence (Rural/Urban) ---------------------------------
 
-ggplot(filter(evwomen, V501 != "Never in union"), aes(x = V511)) +
-  stat_ecdf(geom = "step") +
-  stat_function(aes(color = "PSO-KS"), fun = plnorm, size = .7,
-                args = list(meanlog = psoks_all_afm$solution[1],
-                            sdlog = psoks_all_afm$solution[2])) +
-  stat_function(aes(color = "MLE"), fun = plnorm, size = .7,
-                args = list(meanlog = mle_all_afm$estimate[1],
-                            sdlog = mle_all_afm$estimate[2])) +
-  stat_function(aes(color = "MME"), fun = plnorm, size = .7,
-                args = list(meanlog = mme_all_afm$estimate[1],
-                            sdlog = mme_all_afm$estimate[2])) +
-  scale_colour_manual("Fit Lognormal", values = c("orange", "blue", "red"))+
-  labs(title = "Empirical & Lognormal CDF", 
-       subtitle = "Women age at first marriage, national",
-       x = "Age", y = "Cumulative Density") +
-  theme_minimal()
-
-
-# Diassagregation by Region (Rural/Urban) ---------------------------------
-
+#/data sample ----
 rural_afm <- filter(evwomen, V501 != "Never in union" & V025 == "Rural")$V511
 urban_afm <- filter(evwomen, V501 != "Never in union" & V025 == "Urban")$V511
 
-
-#fitdist
+#/fit distribution ----
 psoks_rural_afm <- pso.fitdist(dt = rural_afm, dist = "lognormal", stat = "ks.stat",
                              limit = c(0,100), max.iter = 200, n.swarm = 20)
 psoks_urban_afm <- pso.fitdist(dt = urban_afm, dist = "lognormal", stat = "ks.stat",
                                limit = c(0,100), max.iter = 200, n.swarm = 20)
-#/pso behaviour
-pso_beh_reg <- data.frame(iter = rep(0:200,2), region = c(rep("Rural", 201),rep("Urban", 201)),
-                          ks = c(psoks_rural_afm$ks.trace, psoks_urban_afm$ks.trace))
-ggplot(pso_beh_reg, aes(iter, ks, group = region)) + geom_line(aes(color = region)) +
-  geom_point(aes(color = region)) + 
+#//pso behaviour
+pso_beh_reg <- data.frame(iter = rep(0:200,2), Residence = c(rep("Rural", 201),rep("Urban", 201)),
+                          ks = c(psoks_rural_afm$stat.trace, psoks_urban_afm$stat.trace))
+ggplot(pso_beh_reg, aes(iter, ks, group = Residence)) + geom_line(aes(color = Residence)) +
+  geom_point(aes(color = Residence)) + 
   labs(title = "PSO-KS's Behaviour, Fitting Lognormal Distribution", 
-       subtitle = "Women age at first marriage, national by region",
+       subtitle = "Women's age at first marriage, national by residence",
        x = "Iteration", y = "KS Distance") +
   theme_bw()
 
@@ -197,26 +183,84 @@ cat("Parameter estimation, national-urban region\n")
 cat("---------------------------------------------\n")
 print(est_urban_afm)
 
-#/central tendency
-rural_central <- rbind(lnorm_meanvar(psoks_rural_afm$solution),
-                     lnorm_meanvar(mle_rural_afm$estimate),
-                     lnorm_meanvar(mme_rural_afm$estimate))
-rownames(rural_central) <- c("PSOKS","MLE","MME")
-cat("Parameter estimation, national-rural region\n")
+#/properties ----
+rural_prop <- rbind(lnorm_prop(psoks_rural_afm$solution),
+                     lnorm_prop(mle_rural_afm$estimate),
+                     lnorm_prop(mme_rural_afm$estimate))
+rownames(rural_prop) <- c("PSOKS","MLE","MME")
+cat("Properties, national-rural region\n")
 cat("---------------------------------------------\n")
-print(rural_central)
+print(rural_prop)
 
-urban_central <- rbind(lnorm_meanvar(psoks_urban_afm$solution),
-                       lnorm_meanvar(mle_urban_afm$estimate),
-                       lnorm_meanvar(mme_urban_afm$estimate))
-rownames(urban_central) <- c("PSOKS","MLE","MME")
-cat("Parameter estimation, national-urban region\n")
+urban_prop <- rbind(lnorm_prop(psoks_urban_afm$solution),
+                       lnorm_prop(mle_urban_afm$estimate),
+                       lnorm_prop(mme_urban_afm$estimate))
+rownames(urban_prop) <- c("PSOKS","MLE","MME")
+cat("Properties, national-urban region\n")
 cat("---------------------------------------------\n")
-print(urban_central)
+print(urban_prop)
+
+#/goodness of fit statistcs ----
+#//mse of distribution fitting
+mse_psoks_rural_afm <- mse.stat(rural_afm,"lognormal", meanlog = psoks_rural_afm$solution[1],
+                              sdlog = psoks_rural_afm$solution[2])
+mse_mle_rural_afm <- mse.stat(rural_afm,"lognormal", meanlog = mle_rural_afm$estimate[1],
+                            sdlog = mle_rural_afm$estimate[2])
+mse_mme_rural_afm <- mse.stat(rural_afm,"lognormal", meanlog = mme_rural_afm$estimate[1],
+                            sdlog = mme_rural_afm$estimate[2])
+
+mse_psoks_urban_afm <- mse.stat(urban_afm,"lognormal", meanlog = psoks_urban_afm$solution[1],
+                                sdlog = psoks_urban_afm$solution[2])
+mse_mle_urban_afm <- mse.stat(urban_afm,"lognormal", meanlog = mle_urban_afm$estimate[1],
+                              sdlog = mle_urban_afm$estimate[2])
+mse_mme_urban_afm <- mse.stat(urban_afm,"lognormal", meanlog = mme_urban_afm$estimate[1],
+                              sdlog = mme_urban_afm$estimate[2])
+
+#//ks distance
+ks_psoks_rural_afm <- ks.stat(rural_afm,"lognormal", meanlog = psoks_rural_afm$solution[1],
+                            sdlog = psoks_rural_afm$solution[2])
+ks_mle_rural_afm <- ks.stat(rural_afm,"lognormal", meanlog = mle_rural_afm$estimate[1],
+                          sdlog = mle_rural_afm$estimate[2])
+ks_mme_rural_afm <- ks.stat(rural_afm,"lognormal", meanlog = mme_rural_afm$estimate[1],
+                          sdlog = mme_rural_afm$estimate[2])
+
+ks_psoks_urban_afm <- ks.stat(urban_afm,"lognormal", meanlog = psoks_urban_afm$solution[1],
+                              sdlog = psoks_urban_afm$solution[2])
+ks_mle_urban_afm <- ks.stat(urban_afm,"lognormal", meanlog = mle_urban_afm$estimate[1],
+                            sdlog = mle_urban_afm$estimate[2])
+ks_mme_urban_afm <- ks.stat(urban_afm,"lognormal", meanlog = mme_urban_afm$estimate[1],
+                            sdlog = mme_urban_afm$estimate[2])
+
+#//log-likelihood
+loglik_psoks_rural_afm <- loglik(rural_afm, "lognormal", psoks_rural_afm$solution)
+loglik_mle_rural_afm <- loglik(rural_afm, "lognormal", mle_rural_afm$estimate)
+loglik_mme_rural_afm <- loglik(rural_afm, "lognormal", mme_rural_afm$estimate)
+
+loglik_psoks_urban_afm <- loglik(urban_afm, "lognormal", psoks_urban_afm$solution)
+loglik_mle_urban_afm <- loglik(urban_afm, "lognormal", mle_urban_afm$estimate)
+loglik_mme_urban_afm <- loglik(urban_afm, "lognormal", mme_urban_afm$estimate)
+
+stat_rural_afm <- rbind(c(mse_psoks_rural_afm, mse_mle_rural_afm, mse_mme_rural_afm), #mse
+                      c(ks_psoks_rural_afm, ks_mle_rural_afm, ks_mme_rural_afm), #ks
+                      c(loglik_psoks_rural_afm, loglik_mle_rural_afm, loglik_mme_rural_afm)) #loglik
+
+stat_urban_afm <- rbind(c(mse_psoks_urban_afm, mse_mle_urban_afm, mse_mme_urban_afm), #mse
+                        c(ks_psoks_urban_afm, ks_mle_urban_afm, ks_mme_urban_afm), #ks
+                        c(loglik_psoks_urban_afm, loglik_mle_urban_afm, loglik_mme_urban_afm)) #loglik
+
+colnames(stat_rural_afm) <- colnames(stat_urban_afm) <- c("PSOKS","MLE","MME")
+rownames(stat_rural_afm) <- rownames(stat_urban_afm) <- c("mse dist","ks distance","loglik")
+cat("Goodness of fit measure, national-rural\n")
+cat("---------------------------------------------\n")
+print(stat_rural_afm)
+
+cat("Goodness of fit measure, national-urban\n")
+cat("---------------------------------------------\n")
+print(stat_urban_afm)
 
 
-#graph fitting
-#/histogram & pdf
+#/graph fitting ----
+#//histogram & pdf
 reg_hist <- hist(rural_afm)
 len_rural_afm <- length(rural_afm)
 len_urban_afm <- length(urban_afm)
@@ -233,7 +277,7 @@ den_urban_mle <- dlnorm(urban_afm, meanlog = mle_urban_afm$estimate[1],
 den_urban_mme <- dlnorm(urban_afm, meanlog = mme_urban_afm$estimate[1],
                         sdlog = mme_urban_afm$estimate[2])
 reg_df <- data.frame(afm = c(rep(rural_afm, 3), rep(urban_afm, 3)),
-                     Reside = c(rep("Rural", 3*len_rural_afm), rep("Urban", 3*len_urban_afm)),
+                     Residence = c(rep("Rural", 3*len_rural_afm), rep("Urban", 3*len_urban_afm)),
                      Fit = c(rep("PSO-KS",len_rural_afm), rep("MLE",len_rural_afm),
                              rep("MME",len_rural_afm),
                              rep("PSO-KS",len_urban_afm), rep("MLE",len_urban_afm),
@@ -247,13 +291,13 @@ ggplot(data = reg_df)+
   xlim(min(all_afm),max(all_afm)) +
   geom_line(aes(x = afm, y = Density, color = Fit), size = .8) +
   labs(title = "Histogram & Lognormal PDF", 
-       subtitle = "Women age at first marriage, national by reside",
+       subtitle = "Women's age at first marriage, national by residence",
        x = "Age", y = "Density") +
   theme_bw() +
-  facet_grid(Reside ~.)
+  facet_grid(Residence ~.)
 
 
-#/ecdf & cdf
+#//ecdf & cdf
 cum_rural_psoks <- plnorm(rural_afm, meanlog = psoks_rural_afm$solution[1],
                           sdlog = psoks_rural_afm$solution[2])
 cum_rural_mle <- plnorm(rural_afm, meanlog = mle_rural_afm$estimate[1],
@@ -267,7 +311,7 @@ cum_urban_mle <- plnorm(urban_afm, meanlog = mle_urban_afm$estimate[1],
 cum_urban_mme <- plnorm(urban_afm, meanlog = mme_urban_afm$estimate[1],
                         sdlog = mme_urban_afm$estimate[2])
 reg_cumd <- data.frame(afm = c(rep(rural_afm, 3), rep(urban_afm, 3)),
-                     Reside = c(rep("Rural", 3*len_rural_afm), rep("Urban", 3*len_urban_afm)),
+                     Residence = c(rep("Rural", 3*len_rural_afm), rep("Urban", 3*len_urban_afm)),
                      Fit = c(rep("PSO-KS",len_rural_afm), rep("MLE",len_rural_afm),
                              rep("MME",len_rural_afm),
                              rep("PSO-KS",len_urban_afm), rep("MLE",len_urban_afm),
@@ -279,7 +323,55 @@ ggplot(data = reg_cumd, aes(afm))+
   stat_ecdf(geom = "step") +
   geom_line(aes(x = afm, y = Cumden, color = Fit), size = .7) +
   labs(title = "Empirical & Lognormal CDF", 
-       subtitle = "Women age at first marriage, national by reside",
+       subtitle = "Women's age at first marriage, national by residence",
        x = "Age", y = "Cumulative Density") +
   theme_bw() +
-  facet_grid(Reside ~.)
+  facet_grid(Residence ~.)
+
+
+# Properties --------------------------------------------------------------
+
+prop <- function(theta){
+  meanlog <- theta[1]
+  sdlog <- theta[2]
+  
+  mode <- exp(meanlog-sdlog^2)
+  mean <- exp(meanlog + .5*sdlog^2)
+  vari <- (exp(sdlog^2)-1)*exp(2*meanlog + sdlog^2)
+  proper <- c(mode, mean, vari)
+  names(proper) <- c("mode", "mean", "variance")
+  return(proper)
+}
+
+# t <- rlnorm(100, meanlog = 1, sdlog = .5)
+# Mode(t)
+# mean(t)
+# var(t)
+# fit <- fitdist(t,"lnorm","mle")
+# prop(fit$estimate)
+
+
+#National
+nat_psoks <- c(2.994, 0.213)
+prop(nat_psoks)
+nat_mle <- c(2.997, 0.221)
+prop(nat_mle)
+nat_mme <- c(2.997, 0.223)
+prop(nat_mme)
+
+#Reside
+#/rural
+rur_psoks <- c(2.949, 0.201)
+prop(rur_psoks)
+rur_mle <- c(2.956, 0.220)
+prop(rur_mle)
+rur_mme <- c(2.955, 0.224)
+prop(rur_mme)
+
+#/urban
+ur_psoks <- c(3.037, 0.209)
+prop(ur_psoks)
+ur_mle <- c(3.038, 0.215)
+prop(ur_mle)
+ur_mme <- c(3.038, 0.215)
+prop(ur_mme)
